@@ -1,5 +1,6 @@
 import subprocess
 import shlex
+import os
 
 class MySQLClient:
     def __init__(self, host="localhost", port=3306, user="root", password="", database=None):
@@ -9,13 +10,13 @@ class MySQLClient:
         self.password = password or ""
         self.database = database
 
-    def _base_cmd(self):
+    def _base_cmd(self, use_db=True):
         cmd = ["mysql",
                "-u", self.user,
                "-h", self.host,
                "-P", str(self.port),
                "--default-character-set=utf8mb4"] 
-        if self.database:
+        if use_db and self.database:
             cmd += ["-D", self.database]
         cmd += ["-N", "-B", "-s"]
         if self.password:
@@ -25,8 +26,8 @@ class MySQLClient:
     def test_connection(self):
         return self.run_sql("SELECT 1;")
 
-    def run_sql(self, sql):
-        cmd = self._base_cmd() + ["-e", sql]
+    def run_sql(self, sql, use_db=True):
+        cmd = self._base_cmd(use_db) + ["-e", sql]
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
             ok = (proc.returncode == 0)
@@ -40,7 +41,27 @@ class MySQLClient:
             return False, "No se encontró el binario 'mysql' en el PATH."
         except Exception as ex:
             return False, f"Error ejecutando mysql: {ex}"
-
+    
+    def run_sql_file(self, path, use_db=True):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except Exception as ex:
+            return False, f"No se pudo leer {path}: {ex}"
+        
+        cmd = self._base_cmd(use_db)
+        try:
+            proc = subprocess.run(cmd, input=content, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", check=False)
+            ok = (proc.returncode == 0)
+            out = proc.stdout.strip()
+            err = proc.stderr.strip()
+            return (True, out) if ok else (False, (err or out))
+        except FileNotFoundError:
+            return False, "No se encontró el binario 'mysql' en el PATH."
+        except Exception as ex:
+            return False, f"Error ejecutando mysql con {os.path.basename(path)}: {ex}"
+        
     @staticmethod
     def esc(value):
         if value is None:

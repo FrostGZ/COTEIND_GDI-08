@@ -139,6 +139,31 @@ class MainApp(tk.Tk):
         self.current_user_code = None
         self.current_user_name = None
         self.after(100, self._open_connection_window)
+    
+    def _init_database(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        sql_dir = os.path.join(base_dir, "sql")
+        files = [
+            ("schema_seed.sql", False),   
+            ("procedures_all.sql", True), 
+            ("triggers.sql", True)
+        ]
+        ok, out = self.client.run_sql(
+            "SELECT COUNT(*) "
+            "FROM information_schema.tables "
+            "WHERE table_schema='coteind' AND table_name='Empleado';",
+            use_db=False
+        )
+        if ok and out.strip() == "1":
+            ok2, out2 = self.client.run_sql("SELECT COUNT(*) FROM Empleado;", use_db=True)
+            if ok2 and out2 and int(out2.strip().splitlines()[0]) > 0:
+                files = [f for f in files if f[0] != "schema_seed.sql"]
+        for fname, use_db in files:
+            path = os.path.join(sql_dir, fname)
+            if os.path.exists(path):
+                okf, outf = self.client.run_sql_file(path, use_db=use_db)
+                if not okf:
+                    messagebox.showerror("Inicialización SQL", f"Error en {fname}:\n{outf}")
 
     def _open_connection_window(self):
         ConnectionWindow(self, self._on_connected)
@@ -146,6 +171,7 @@ class MainApp(tk.Tk):
     def _on_connected(self, cfg):
         self.cfg = cfg
         self.client = MySQLClient(**cfg)
+        self._init_database()
         LoginWindow(self, cfg, self._on_login_ok)
 
     def _on_login_ok(self, cfg, user_code, user_name):
