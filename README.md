@@ -5,7 +5,7 @@ Aplicación de escritorio (tkinter) que consume una BD.
 ## Requisitos
 - Python 3.8+
 - MySQL Server y cliente `mysql` en PATH
-- Config en `config.json` (por defecto: root / 3306 / c)
+- Config en `config.json` (por defecto: root / 3306 /)
 
 ## Ejecutar
 ```bash
